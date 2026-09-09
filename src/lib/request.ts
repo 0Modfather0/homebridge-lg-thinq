@@ -35,7 +35,18 @@ function errorWithCause<T extends Error>(error: T, cause: unknown): T {
   return error;
 }
 
-const client = axios.create();
+const client = axios.create({
+  headers: {
+    // LG's preLogin endpoint (us.m.lgaccount.com/spx/preLogin, behind an AWS ELB)
+    // returns HTTP 403 when it sees axios's default User-Agent. Spoofing a browser
+    // UA on the shared client avoids the block. Per-request header sets
+    // (empHeaders / defaultEmpHeaders) still merge on top of this.
+    // See: https://github.com/nVuln/homebridge-lg-thinq/issues/402
+    //      https://github.com/nVuln/homebridge-lg-thinq/pull/400
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
+      + '(KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36 Edg/93.0.961.44',
+  },
+});
 client.defaults.timeout = 60000; // 60s timeout
 
 client.interceptors.request.use((config) => {
