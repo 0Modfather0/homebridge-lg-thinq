@@ -162,7 +162,7 @@ describe('platform accessory reconciliation', () => {
     expect(handler.accessory.context.device).toBe(device);
     expect(accessories).toHaveLength(1);
     expect(api.registerPlatformAccessories).toHaveBeenCalledWith(
-      'homebridge-lg-thinq',
+      '@0modfather0/homebridge-lg-thinq',
       'LGThinQ',
       [handler.accessory],
     );
@@ -197,7 +197,7 @@ describe('platform accessory reconciliation', () => {
     expect(listener).not.toHaveBeenCalled();
     expect(staleAccessories(accessories, pendingIds)).toEqual([]);
     expect(api.unregisterPlatformAccessories).toHaveBeenCalledWith(
-      'homebridge-lg-thinq',
+      '@0modfather0/homebridge-lg-thinq',
       'LGThinQ',
       [stale],
     );

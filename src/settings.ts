@@ -6,4 +6,4 @@ export const PLATFORM_NAME = 'LGThinQ';
 /**
  * This must match the name of your plugin as defined the package.json
  */
-export const PLUGIN_NAME = 'homebridge-lg-thinq';
+export const PLUGIN_NAME = '@0modfather0/homebridge-lg-thinq';

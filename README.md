@@ -4,9 +4,8 @@
 
 # Homebridge LG ThinQ
 
-[![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
-[![npm](https://img.shields.io/npm/v/homebridge-lg-thinq/latest?label=latest)](https://www.npmjs.com/package/homebridge-lg-thinq)
-[![npm](https://img.shields.io/npm/dt/homebridge-lg-thinq)](https://www.npmjs.com/package/homebridge-lg-thinq)
+[![npm](https://img.shields.io/npm/v/%400modfather0%2Fhomebridge-lg-thinq/latest?label=latest)](https://www.npmjs.com/package/@0modfather0/homebridge-lg-thinq)
+[![npm](https://img.shields.io/npm/dt/%400modfather0%2Fhomebridge-lg-thinq)](https://www.npmjs.com/package/@0modfather0/homebridge-lg-thinq)
 [![join-discord](https://badgen.net/badge/icon/discord?icon=discord&label=homebridge-lg-thinq)](https://discord.gg/wEfQpCDtS7)
 
 ## Overview
@@ -14,6 +13,8 @@
 Homebridge LG ThinQ is a Homebridge platform plugin for controlling and monitoring LG ThinQ appliances.
 
 This plugin is not an official LG API client. It works with LG ThinQ account data and supports most current ThinQ2 devices, with optional support for some legacy ThinQ1 devices.
+
+This fork includes the bvksound pre-login fix and a fallback for LG OAuth key-lookup 404 responses. It is independently maintained and is not currently a Homebridge Verified Plugin.
 
 ## Requirements
 
@@ -25,7 +26,7 @@ This plugin is not an official LG API client. It works with LG ThinQ account dat
 Install the plugin from the Homebridge UI, or install it manually:
 
 ```sh
-npm install -g homebridge-lg-thinq
+npm install -g @0modfather0/homebridge-lg-thinq
 ```
 
 ## Configuration
@@ -131,9 +132,9 @@ Commands:
 
 ## Support
 
-If you have a question, start a [discussion](https://github.com/nVuln/homebridge-lg-thinq/discussions/new) or leave a message in the [Discord channel](https://discord.gg/wEfQpCDtS7).
+If you have a question about this fork, start a [discussion](https://github.com/0Modfather0/homebridge-lg-thinq/discussions/new). For broader upstream discussion, visit the [original project](https://github.com/nVuln/homebridge-lg-thinq).
 
-If you would like to report a bug, open an [issue](https://github.com/nVuln/homebridge-lg-thinq/issues/new/choose).
+If you would like to report a bug in this fork, open an [issue](https://github.com/0Modfather0/homebridge-lg-thinq/issues/new/choose).
 
 ## Contributors
 

@@ -1,8 +1,8 @@
 {
-  "displayName": "Homebridge LG ThinQ (bvksound fix)",
-  "name": "@bvksound/homebridge-lg-thinq",
+  "displayName": "Homebridge LG ThinQ OAuth Fix",
+  "name": "@0modfather0/homebridge-lg-thinq",
   "version": "2.1.1",
-  "description": "A Homebridge plugin for controlling/monitoring LG ThinQ devices via LG ThinQ platform. Fork of homebridge-lg-thinq with the LG preLogin 403 (axios User-Agent) fix applied — see nVuln/homebridge-lg-thinq#400 / #402.",
+  "description": "A Homebridge plugin for controlling and monitoring LG ThinQ devices, with fixes for current LG OAuth authentication.",
   "license": "Apache-2.0",
   "type": "module",
   "publishConfig": {
@@ -61,7 +61,8 @@
   "homepage": "https://github.com/0Modfather0/homebridge-lg-thinq#readme",
   "author": "nVuln",
   "contributors": [
-    "bvksound (preLogin 403 fix fork)"
+    "bvksound (preLogin 403 fix fork)",
+    "0Modfather0 (LG OAuth key lookup fix)"
   ],
   "dependencies": {
     "@homebridge/plugin-ui-utils": "^2.2.3",
