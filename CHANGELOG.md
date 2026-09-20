@@ -1,5 +1,12 @@
 # Change Log
 
+## v2.1.2
+
+* Use LG's current `lgemembers.com` account sign-in flow before the retired EMP OAuth flow.
+* Encrypt the account identifier as required by LG's current sign-in page and carry the issued session cookie through OAuth authorization.
+* Retain the legacy flow as a regional fallback and improve logging when that fallback is used.
+* Credit `mp-consulting/homebridge-lg-thinq` as the source of the current account-flow implementation.
+
 ## v2.1.1
 
 * Fall back to the bundled LG application OAuth key when LG returns HTTP 404 for its retired dynamic key lookup endpoint.

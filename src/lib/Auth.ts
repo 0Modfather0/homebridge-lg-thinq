@@ -110,10 +110,210 @@ export class Auth {
    * @returns A promise that resolves with a `Session` instance.
    */
   public async login(username: string, password: string) {
-    // get signature and timestamp in login form
     const hash = crypto.createHash('sha512');
+    const encryptedPassword = hash.update(password).digest('hex');
 
-    return this.loginStep2(username, hash.update(password).digest('hex'));
+    // LG removed the secret-key lookup used by the legacy EMP session flow.
+    // Prefer the current lgemembers.com flow, while retaining legacy support
+    // for regions where it may still be available.
+    try {
+      return await this.loginNew(username, encryptedPassword);
+    } catch (err: unknown) {
+      if (err instanceof AuthenticationError) {
+        throw err;
+      }
+
+      this.logger.warn(
+        `Current LG account sign-in failed (${authErrorMessage(err, 'unknown error')}); trying the legacy flow.`,
+      );
+      return this.loginStep2(username, encryptedPassword);
+    }
+  }
+
+  /**
+   * Signs in through LG's current lgemembers.com account system.
+   *
+   * Adapted from mp-consulting/homebridge-lg-thinq, Apache-2.0 licensed.
+   */
+  public async loginNew(username: string, encryptedPassword: string) {
+    const country = this.gateway.country_code;
+    const language = this.gateway.language_code;
+    const host = `https://${country.toLowerCase()}.${constants.LGACC_BASE_URL}`;
+    const headers = {
+      'Accept': '*/*',
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      'X-Requested-With': 'XMLHttpRequest',
+      'Accept-Language': `${language},${country.toLowerCase()};q=0.9`,
+      'Origin': host,
+      'User-Agent': constants.EMP_USER_AGENT,
+    };
+
+    const signInParams = {
+      callback_url: constants.LGACC_REDIRECT_URI,
+      client_id: constants.CLIENT_ID,
+      close_type: '0',
+      country,
+      language,
+      pre_login: '',
+      redirect_url: constants.LGACC_REDIRECT_URI,
+      state: 'signin',
+      svc_code: constants.SVC_CODE,
+      svc_integrated: 'Y',
+      ui_mode: 'light',
+      webview_yn: 'Y',
+    };
+    const pageResponse = await requestClient.get(
+      `${host}/lgacc/service/v1/signin?${qs.stringify(signInParams)}`,
+      {
+        headers: {
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': headers['Accept-Language'],
+          'User-Agent': constants.EMP_USER_AGENT,
+        },
+      },
+    );
+    const cookie = this.firstCookie(pageResponse.headers['set-cookie']);
+
+    const accountResponse = await requestClient.post(
+      `${host}/lgacc/front/v1/signin/signInAct`,
+      qs.stringify({
+        clientId: constants.CLIENT_ID,
+        doneYn: '',
+        ipadYn: 'N',
+        itgTermsUseFlag: 'Y',
+        itgUserType: 'A',
+        local_country: country,
+        local_lang: language.split('-')[0],
+        skipYn: 'N',
+        svcCode: constants.SVC_CODE,
+        svc_code: constants.SVC_CODE,
+        userId: encodeURIComponent(this.encryptUserId(username)),
+        userPw: encryptedPassword,
+      }),
+      { headers: { ...headers, Cookie: cookie } },
+    );
+
+    const account = accountResponse.data?.account;
+    if (!account) {
+      const { code, message } = accountResponse.data?.error || {};
+      if (code === 'MS.001.03') {
+        throw new AuthenticationError(`Your account was already used to registered in ${message}.`);
+      }
+
+      throw new AuthenticationError(
+        message || accountResponse.data?.message
+        || 'LG rejected the sign-in. If this account uses Apple, Google, or Facebook sign-in, use a dedicated LG account.',
+      );
+    }
+
+    const loginSessionID = account.loginSessionID;
+    const loginUuid = crypto.randomUUID();
+    const completeResponse = await requestClient.post(
+      `${host}/lgacc/front/v1/signin/signInComplete`,
+      qs.stringify({
+        loginSessionID,
+        additionalInfo: encodeURIComponent(JSON.stringify({
+          uuid: loginUuid,
+          user_id: account.userID,
+          user_id_type: account.userIDType,
+          svc_integrated: 'Y',
+        })),
+        autoYn: 'N',
+        deviceId: this.randomString(32),
+        ipadYn: 'N',
+        local_country: country,
+        local_lang: language.split('-')[0],
+        serviceYn: 'Y',
+        svcCode: constants.SVC_CODE,
+        svc_code: constants.SVC_CODE,
+        uuid: loginUuid,
+      }),
+      { headers: { ...headers, Cookie: cookie } },
+    );
+
+    if (completeResponse.data?.code !== 'SUCCESS') {
+      throw new TokenError(completeResponse.data?.message || JSON.stringify(completeResponse.data));
+    }
+    const sessionCookie = this.firstCookie(completeResponse.headers['set-cookie']) || cookie;
+
+    await requestClient.post(
+      `${host}/lgacc/front/v1/signin/token`,
+      qs.stringify({ loginSessionID, uuid: loginUuid }),
+      { headers: { ...headers, Cookie: sessionCookie } },
+    );
+
+    const oauthResponse = await requestClient.post(
+      `${host}/lgacc/front/v1/signin/oauth`,
+      qs.stringify({
+        loginSessionID,
+        accountType: 'LGE',
+        clientId: constants.CLIENT_ID,
+        countryCode: country,
+        local_country: country,
+        local_lang: language.split('-')[0],
+        redirectUri: constants.LGACC_REDIRECT_URI,
+        state: 'signin',
+        svc_code: constants.SVC_CODE,
+        userName: username,
+      }),
+      { headers: { ...headers, Cookie: sessionCookie } },
+    );
+
+    const redirectUri = oauthResponse.data?.redirect_uri;
+    if (!redirectUri) {
+      throw new TokenError(oauthResponse.data?.message || JSON.stringify(oauthResponse.data));
+    }
+    const code = qs.parse(decodeURIComponent(redirectUri).split('?')[1])?.code;
+    if (!code || typeof code !== 'string') {
+      throw new TokenError('LG returned no authorization code.');
+    }
+
+    return this.requestToken({ code, grant_type: 'authorization_code' });
+  }
+
+  protected encryptUserId(username: string) {
+    return crypto.publicEncrypt({
+      key: constants.LGACC_PUBLIC_KEY,
+      padding: crypto.constants.RSA_PKCS1_PADDING,
+    }, Buffer.from(username)).toString('base64');
+  }
+
+  protected firstCookie(setCookie?: string[]) {
+    return setCookie?.[0]?.split(';')[0] || '';
+  }
+
+  protected randomString(length: number) {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    return Array.from({ length }, () => characters[crypto.randomInt(characters.length)]).join('');
+  }
+
+  protected async requestToken(data: Record<string, string>, backendUrl?: string) {
+    const tokenData = { ...data, redirect_uri: constants.LGACC_REDIRECT_URI };
+    const timestamp = DateTime.utc().toRFC2822();
+    const requestUrl = `/oauth/1.0/oauth2/token?${qs.stringify(tokenData)}`;
+    const baseUrl = backendUrl || this.lgeapi_url;
+    const tokenUrl = `${baseUrl.replace(/\/?$/, '/')}oauth/1.0/oauth2/token`;
+
+    const res = await requestClient.post(tokenUrl, qs.stringify(tokenData), {
+      headers: {
+        'x-lge-app-os': 'ADR',
+        'x-lge-appkey': constants.CLIENT_ID,
+        'x-lge-oauth-signature': this.signature(`${requestUrl}\n${timestamp}`, constants.OAUTH_SECRET_KEY),
+        'x-lge-oauth-date': timestamp,
+        'Accept': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    }).catch(err => {
+      throw authError('LG token exchange failed', err);
+    });
+    const token = res.data;
+
+    this.lgeapi_url = token.oauth2_backend_url || this.lgeapi_url;
+    return new Session(
+      token.access_token,
+      token.refresh_token,
+      Session.expiryTimestampFromExpiresIn(parseInt(token.expires_in, 10)),
+    );
   }
 
   /**
@@ -211,38 +411,12 @@ export class Auth {
 
     const redirect_uri = new URL(authorize.redirect_uri);
 
-    const tokenData = {
-      code: redirect_uri.searchParams.get('code'),
-      grant_type: 'authorization_code',
-      redirect_uri: empData.redirect_uri,
-    };
-
-    const requestUrl = '/oauth/1.0/oauth2/token?' + qs.stringify(tokenData);
-
-    const res = await requestClient.post(
-      redirect_uri.searchParams.get('oauth2_backend_url') + 'oauth/1.0/oauth2/token',
-      qs.stringify(tokenData),
+    return this.requestToken(
       {
-        headers: {
-          'x-lge-app-os': 'ADR',
-          'x-lge-appkey': constants.CLIENT_ID,
-          'x-lge-oauth-signature': this.signature(`${requestUrl}\n${timestamp}`, constants.OAUTH_SECRET_KEY),
-          'x-lge-oauth-date': timestamp,
-          'Accept': 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        code: redirect_uri.searchParams.get('code') || '',
+        grant_type: 'authorization_code',
       },
-    ).catch(err => {
-      throw authError('LG token exchange failed', err);
-    });
-    const token = res.data;
-
-    this.lgeapi_url = token.oauth2_backend_url || this.lgeapi_url;
-
-    return new Session(
-      token.access_token,
-      token.refresh_token,
-      Session.expiryTimestampFromExpiresIn(parseInt(token.expires_in, 10)),
+      redirect_uri.searchParams.get('oauth2_backend_url') || undefined,
     );
   }
 

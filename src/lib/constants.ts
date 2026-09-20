@@ -8,6 +8,26 @@ export const API_CLIENT_ID = 'c713ea8e50f657534ff8b9d373dfebfc2ed70b88285c26b8ad
 
 export const APPLICATION_KEY = '6V1V8H2BN5P9ZQGOI5DAQ92YZBDO3EK9'; // for spx login
 
+// LG rejects EMP authentication requests from unrecognised clients in some regions.
+export const EMP_USER_AGENT = 'LG ThinQ/5.0.11861 (iPhone; iOS 17.1; Scale/3.00)';
+
+// LG migrated account sign-in to lgemembers.com and removed the legacy OAuth
+// secret-key lookup endpoint. The current sign-in page encrypts the user ID
+// with this public key before submitting it to LG.
+export const LGACC_BASE_URL = 'lgemembers.com';
+export const LGACC_REDIRECT_URI = 'lgaccount.lgsmartthinq:/';
+export const LGACC_PUBLIC_KEY = [
+  '-----BEGIN PUBLIC KEY-----',
+  'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkb2bcfvV5Q2Ag0UI6Mj3',
+  'oDmS0b2I9RTIRFhIVqrO47FRKQaFQpjiKkgxMcbLqK+ACTORrt6eA6srX/HKGtN9',
+  'aJvM/8ZzqAe1tztli/yQtm6MezKExTtSAxYkawaV2s+pj7RkOes+BsJ0ahL/HC1x',
+  'divxU4M0DN7AKdOyQM3XJnAfIimb1yhI5VeQkSBLDeAY9OTjRdAn4N6aRXaIwtck',
+  'hQYDs7t120uhRvtRX8WVY+YiROCKTgK9PPcvaGgWublxLnSPFFb4BGYDan2Ro0DL',
+  'b0DD1It4vqePBDWZD9MByhRJ67mQGXOJ/u3EEbctHB7TZkejjWn5sArU6K1jP0LB',
+  'hwIDAQAB',
+  '-----END PUBLIC KEY-----',
+].join('\n');
+
 export enum PlatformType {
   ThinQ1 = 'thinq1',
   ThinQ2 = 'thinq2',

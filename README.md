@@ -14,7 +14,7 @@ Homebridge LG ThinQ is a Homebridge platform plugin for controlling and monitori
 
 This plugin is not an official LG API client. It works with LG ThinQ account data and supports most current ThinQ2 devices, with optional support for some legacy ThinQ1 devices.
 
-This fork includes the bvksound pre-login fix and a fallback for LG OAuth key-lookup 404 responses. It is independently maintained and is not currently a Homebridge Verified Plugin.
+This fork includes the bvksound pre-login fix and the current LG account sign-in flow adapted from [mp-consulting/homebridge-lg-thinq](https://github.com/mp-consulting/homebridge-lg-thinq). It is independently maintained and is not currently a Homebridge Verified Plugin.
 
 ## Requirements
 

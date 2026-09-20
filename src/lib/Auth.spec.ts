@@ -54,11 +54,89 @@ describe('Auth', () => {
 
   test('should login and return a session', async () => {
     const mockSession = new Session('accessToken', 'refreshToken', Date.now() + 3600 * 1000);
-    jest.spyOn(auth, 'loginStep2').mockResolvedValueOnce(mockSession);
+    jest.spyOn(auth, 'loginNew').mockResolvedValueOnce(mockSession);
 
     const session = await auth.login('testUser', 'testPassword');
     expect(session).toBe(mockSession);
+    expect(auth.loginNew).toHaveBeenCalledWith('testUser', expect.any(String));
+  });
+
+  test('falls back to the legacy login for non-authentication failures', async () => {
+    const mockSession = new Session('accessToken', 'refreshToken', Date.now() + 3600 * 1000);
+    jest.spyOn(auth, 'loginNew').mockRejectedValueOnce(new Error('New endpoint unavailable'));
+    jest.spyOn(auth, 'loginStep2').mockResolvedValueOnce(mockSession);
+
+    await expect(auth.login('testUser', 'testPassword')).resolves.toBe(mockSession);
     expect(auth.loginStep2).toHaveBeenCalledWith('testUser', expect.any(String));
+    expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('New endpoint unavailable'));
+  });
+
+  test('does not retry invalid credentials through the legacy login', async () => {
+    jest.spyOn(auth, 'loginNew').mockRejectedValueOnce(new AuthenticationError('Invalid credentials'));
+    const legacySpy = jest.spyOn(auth, 'loginStep2');
+
+    await expect(auth.login('testUser', 'testPassword')).rejects.toThrow('Invalid credentials');
+    expect(legacySpy).not.toHaveBeenCalled();
+  });
+
+  test('logs in through the current LG account flow', async () => {
+    const requestClient = require('./request').requestClient;
+    jest.spyOn(
+      auth as unknown as { encryptUserId(username: string): string },
+      'encryptUserId',
+    ).mockReturnValue('encrypted-user');
+    jest.spyOn(
+      auth as unknown as { randomString(length: number): string },
+      'randomString',
+    ).mockReturnValue('device-id');
+
+    jest.spyOn(requestClient, 'get').mockResolvedValueOnce({
+      headers: { 'set-cookie': ['initial-cookie=one; Path=/; Secure'] },
+      data: '<html></html>',
+    });
+    const postSpy = jest.spyOn(requestClient, 'post')
+      .mockResolvedValueOnce({ data: { account: {
+        loginSessionID: 'session-id',
+        userID: 'testUser',
+        userIDType: 'LGE',
+      } } })
+      .mockResolvedValueOnce({
+        data: { code: 'SUCCESS' },
+        headers: { 'set-cookie': ['session-cookie=two; Path=/; Secure'] },
+      })
+      .mockResolvedValueOnce({ data: { code: 'SUCCESS' } })
+      .mockResolvedValueOnce({ data: {
+        redirect_uri: 'lgaccount.lgsmartthinq%3A%2F%3Fcode%3Dauthorization-code',
+      } })
+      .mockResolvedValueOnce({ data: {
+        access_token: 'accessToken',
+        refresh_token: 'refreshToken',
+        expires_in: 3600,
+      } });
+
+    const session = await auth.loginNew('testUser', 'hashed-password');
+
+    expect(session.accessToken).toBe('accessToken');
+    expect(session.refreshToken).toBe('refreshToken');
+    expect(session.hasValidToken()).toBe(true);
+    expect(postSpy).toHaveBeenNthCalledWith(
+      1,
+      'https://us.lgemembers.com/lgacc/front/v1/signin/signInAct',
+      expect.stringContaining('userId=encrypted-user'),
+      expect.objectContaining({ headers: expect.objectContaining({ Cookie: 'initial-cookie=one' }) }),
+    );
+    expect(postSpy).toHaveBeenNthCalledWith(
+      4,
+      'https://us.lgemembers.com/lgacc/front/v1/signin/oauth',
+      expect.any(String),
+      expect.objectContaining({ headers: expect.objectContaining({ Cookie: 'session-cookie=two' }) }),
+    );
+    expect(postSpy).toHaveBeenNthCalledWith(
+      5,
+      'https://us.lgeapi.com/oauth/1.0/oauth2/token',
+      expect.stringContaining('code=authorization-code'),
+      expect.any(Object),
+    );
   });
 
   test('extracts LG auth error details from response payloads', () => {

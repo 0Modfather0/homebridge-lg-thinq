@@ -1,7 +1,7 @@
 {
   "displayName": "Homebridge LG ThinQ OAuth Fix",
   "name": "@0modfather0/homebridge-lg-thinq",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "A Homebridge plugin for controlling and monitoring LG ThinQ devices, with fixes for current LG OAuth authentication.",
   "license": "Apache-2.0",
   "type": "module",
@@ -62,7 +62,8 @@
   "author": "nVuln",
   "contributors": [
     "bvksound (preLogin 403 fix fork)",
-    "0Modfather0 (LG OAuth key lookup fix)"
+    "0Modfather0 (LG OAuth compatibility fixes)",
+    "Mickael Palma / mp-consulting (current LG account sign-in flow)"
   ],
   "dependencies": {
     "@homebridge/plugin-ui-utils": "^2.2.3",
