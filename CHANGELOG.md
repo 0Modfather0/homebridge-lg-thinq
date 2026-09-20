@@ -1,5 +1,10 @@
 # Change Log
 
+## v2.1.1
+
+* Fall back to the bundled LG application OAuth key when LG returns HTTP 404 for its retired dynamic key lookup endpoint.
+* Preserve failures for other HTTP and network errors instead of masking unrelated authentication problems.
+
 ## v2.0.0
 
 ### Compatibility and Packaging
