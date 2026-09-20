@@ -58,6 +58,19 @@ export function authErrorMessage(err: unknown, fallback: string): string {
     || fallback;
 }
 
+export function authHttpStatus(err: unknown): number | null {
+  const error = recordValue(err);
+  const response = recordValue(error?.response);
+  const status = error?.status ?? response?.status;
+
+  if (typeof status === 'number') {
+    return status;
+  }
+
+  const cause = errorCause(err);
+  return cause ? authHttpStatus(cause) : null;
+}
+
 function authError(context: string, err: unknown): AuthenticationError {
   const message = authErrorMessage(err, 'Request failed.');
   const error = new AuthenticationError(`${context}: ${message}`);
@@ -151,6 +164,11 @@ export class Auth {
     const empSearchKeyUrl = this.gateway.login_base_url + 'searchKey?key_name=OAUTH_SECRETKEY&sever_type=OP';
     const secretKey = await requestClient.get(empSearchKeyUrl).then(res => res.data).then(data => data.returnData)
       .catch(err => {
+        if (authHttpStatus(err) === 404) {
+          this.logger.warn('LG OAuth key lookup endpoint is unavailable; using the bundled application key.');
+          return constants.OAUTH_SECRET_KEY;
+        }
+
         throw authError('LG OAuth key lookup failed', err);
       });
 

@@ -1,6 +1,6 @@
 /* eslint-disable dot-notation */
 /* eslint-disable @typescript-eslint/no-require-imports */
-import { Auth, authErrorCode, authErrorMessage } from './Auth.js';
+import { Auth, authErrorCode, authErrorMessage, authHttpStatus } from './Auth.js';
 import { Gateway } from './Gateway.js';
 import { Session } from './Session.js';
 import { Logger } from 'homebridge';
@@ -80,6 +80,13 @@ describe('Auth', () => {
     expect(authErrorMessage({}, 'fallback')).toBe('fallback');
   });
 
+  test('extracts HTTP status from Axios-style errors and nested causes', () => {
+    expect(authHttpStatus({ response: { status: 404 } })).toBe(404);
+    expect(authHttpStatus({ status: 403 })).toBe(403);
+    expect(authHttpStatus({ cause: { response: { status: 500 } } })).toBe(500);
+    expect(authHttpStatus({})).toBeNull();
+  });
+
   test('should handle loginStep2 and return a session', async () => {
     const mockPreLoginResponse = {
       signature: 'mockSignature',
@@ -128,6 +135,68 @@ describe('Auth', () => {
     expect(session.accessToken).toBe('accessToken');
     expect(session.refreshToken).toBe('refreshToken');
     expect(session.hasValidToken()).toBe(true);
+  });
+
+  test('uses the bundled OAuth key when LG removes the dynamic key endpoint', async () => {
+    const requestClient = require('./request').requestClient;
+    jest.spyOn(requestClient, 'post')
+      .mockResolvedValueOnce({ data: {
+        signature: 'mockSignature',
+        tStamp: 'mockTimestamp',
+        encrypted_pw: 'mockEncryptedPassword',
+      } })
+      .mockResolvedValueOnce({ data: { account: {
+        userIDType: 'EMP',
+        country: 'US',
+        userID: 'testUser',
+        loginSessionID: 'session123',
+      } } })
+      .mockResolvedValueOnce({ data: {
+        access_token: 'accessToken',
+        refresh_token: 'refreshToken',
+        expires_in: 3600,
+      } });
+    jest.spyOn(requestClient, 'get')
+      .mockRejectedValueOnce({ response: { status: 404 } })
+      .mockResolvedValueOnce({ data: {
+        status: 1,
+        redirect_uri: 'https://example.com/oauth?code=mockCode',
+      } });
+    const signatureSpy = jest.spyOn(
+      auth as unknown as { signature(message: string, secret: string): string },
+      'signature',
+    );
+
+    const session = await auth.loginStep2('testUser', 'mockEncryptedPassword');
+
+    expect(session.refreshToken).toBe('refreshToken');
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'LG OAuth key lookup endpoint is unavailable; using the bundled application key.',
+    );
+    expect(signatureSpy).toHaveBeenCalledWith(expect.any(String), 'c053c2a6ddeb7ad97cb0eed0dcb31cf8');
+  });
+
+  test('does not hide non-404 OAuth key lookup failures', async () => {
+    const requestClient = require('./request').requestClient;
+    jest.spyOn(requestClient, 'post')
+      .mockResolvedValueOnce({ data: {
+        signature: 'mockSignature',
+        tStamp: 'mockTimestamp',
+        encrypted_pw: 'mockEncryptedPassword',
+      } })
+      .mockResolvedValueOnce({ data: { account: {
+        userIDType: 'EMP',
+        country: 'US',
+        userID: 'testUser',
+        loginSessionID: 'session123',
+      } } });
+    jest.spyOn(requestClient, 'get')
+      .mockRejectedValueOnce({ response: { status: 500 }, message: 'Request failed with status code 500' });
+
+    const promise = auth.loginStep2('testUser', 'mockEncryptedPassword');
+
+    await expect(promise).rejects.toThrow('LG OAuth key lookup failed');
+    expect(mockLogger.warn).not.toHaveBeenCalled();
   });
 
   test('should refresh tokens using expires_in as a duration', async () => {
