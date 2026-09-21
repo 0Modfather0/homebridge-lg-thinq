@@ -25,6 +25,11 @@ describe('platform config helpers', () => {
 
   test('validates required ThinQ credentials', () => {
     expect(hasRequiredThinQConfig(config({
+      auth_mode: 'thinq_connect',
+      country: 'US',
+      language: 'en-US',
+    }))).toBe(true);
+    expect(hasRequiredThinQConfig(config({
       country: 'US',
       language: 'en-US',
       refresh_token: 'token',
@@ -52,6 +57,8 @@ describe('platform config helpers', () => {
     expect(refreshIntervalMs(config({ refresh_interval: '15' }))).toBe(15000);
     expect(refreshIntervalMs(config({ refresh_interval: 0 }))).toBe(5000);
     expect(refreshIntervalMs(config({ refresh_interval: 'bad' }))).toBe(5000);
+    expect(refreshIntervalMs(config({ auth_mode: 'thinq_connect' }))).toBe(300000);
+    expect(refreshIntervalMs(config({ auth_mode: 'thinq_connect', refresh_interval: 0 }))).toBe(300000);
   });
 
   test('filters devices when configured ids are present', () => {

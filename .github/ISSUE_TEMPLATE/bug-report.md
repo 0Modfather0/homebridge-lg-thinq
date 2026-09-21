@@ -7,6 +7,10 @@ assignees: ''
 
 ---
 
+> **Experimental software:** use at your own risk. Never attach PATs, refresh tokens, MQTT keys/certificates, client UUIDs, complete device IDs, serial numbers, email addresses, IP addresses, HomeKit codes, or raw unreviewed logs. Revoke anything disclosed accidentally.
+
+<!-- Confirm you preserved a backup and can roll back before reporting. -->
+
 <!-- You must use the issue template below when submitting a bug -->
 
 **Describe The Bug:**

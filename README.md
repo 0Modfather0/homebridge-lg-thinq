@@ -1,141 +1,121 @@
-<p align="center">
-<img src="https://raw.githubusercontent.com/homebridge/branding/latest/logos/homebridge-wordmark-logo-vertical.png" width="150">
-</p>
+# Homebridge LG ThinQ Connect
 
-# Homebridge LG ThinQ
+> [!CAUTION]
+> **Experimental — limited real-world testing — use at your own risk.** The ThinQ Connect backend has not been broadly validated across LG models, firmware, regions, Homebridge releases, or operating systems. Preserve backups and understand the rollback procedure before installing. This independent project is not endorsed, certified, supported, or affiliated with LG, Apple, or Homebridge.
 
-[![npm](https://img.shields.io/npm/v/%400modfather0%2Fhomebridge-lg-thinq/latest?label=latest)](https://www.npmjs.com/package/@0modfather0/homebridge-lg-thinq)
-[![npm](https://img.shields.io/npm/dt/%400modfather0%2Fhomebridge-lg-thinq)](https://www.npmjs.com/package/@0modfather0/homebridge-lg-thinq)
-[![join-discord](https://badgen.net/badge/icon/discord?icon=discord&label=homebridge-lg-thinq)](https://discord.gg/wEfQpCDtS7)
+Read-only Homebridge integration for LG washers, dryers, and WashTowers using LG's official ThinQ Connect API. Version 2.2.0 retains the deprecated legacy backend for explicit compatibility use; it never falls back to legacy authentication automatically.
 
-## Overview
+The npm package remains `@0modfather0/homebridge-lg-thinq` and the Homebridge platform name remains `LGThinQ`, preserving upgrades and cached accessory identity.
 
-Homebridge LG ThinQ is a Homebridge platform plugin for controlling and monitoring LG ThinQ appliances.
+## Supported devices
 
-This plugin is not an official LG API client. It works with LG ThinQ account data and supports most current ThinQ2 devices, with optional support for some legacy ThinQ1 devices.
-
-This fork includes the bvksound pre-login fix and the current LG account sign-in flow adapted from [mp-consulting/homebridge-lg-thinq](https://github.com/mp-consulting/homebridge-lg-thinq). It is independently maintained and is not currently a Homebridge Verified Plugin.
-
-## Requirements
-
-* Homebridge `^1.11.2` or Homebridge `^2.0.0`
-* Node.js `^22.13.0` or `^24.0.0`
-
-## Installation
-
-Install the plugin from the Homebridge UI, or install it manually:
-
-```sh
-npm install -g @0modfather0/homebridge-lg-thinq
-```
-
-## Configuration
-
-The Homebridge UI plugin settings are recommended.
-
-1. Open Homebridge UI.
-2. Go to the Plugins page.
-3. Open the settings for Homebridge LG ThinQ.
-4. Select the country and language for your LG account.
-5. Sign in with your LG account to get a refresh token.
-6. Click the Homebridge UI Save button.
-7. Restart Homebridge or the plugin child bridge.
-8. Reopen the plugin settings to review discovered devices and device options.
-
-If no devices are listed in the plugin config, all supported devices in the LG account are enabled. Add device entries only when you want to rename devices, configure device options, or enable only specific devices.
-
-## Manual Configuration
-
-Manual editing is supported, but the Homebridge UI is recommended.
-
-```json
-{
-  "platform": "LGThinQ",
-  "auth_mode": "token",
-  "refresh_token": "refresh-token-from-lg-login",
-  "country": "US",
-  "language": "en-US",
-  "devices": []
-}
-```
-
-To enable or configure only specific devices, list them by device id:
-
-```json
-{
-  "platform": "LGThinQ",
-  "auth_mode": "token",
-  "refresh_token": "refresh-token-from-lg-login",
-  "country": "US",
-  "language": "en-US",
-  "devices": [
-    {
-      "id": "device-id",
-      "name": "Laundry Room Washer"
-    }
-  ]
-}
-```
-
-| Option | Required | Description |
+| ThinQ Connect device | Status | Current HomeKit presentation |
 | --- | --- | --- |
-| `platform` | Yes | Must be `LGThinQ`. |
-| `auth_mode` | Yes | Use `token` for refresh-token auth. `account` is also accepted for username/password config. |
-| `refresh_token` | Yes, for token auth | Refresh token returned by the LG login flow. |
-| `username` | Yes, for account auth | LG ThinQ account username. |
-| `password` | Yes, for account auth | LG ThinQ account password. |
-| `country` | Yes | LG account country alpha-2 code, for example `US`. |
-| `language` | Yes | LG account language code, for example `en-US`. |
-| `devices` | No | Empty or omitted enables all supported discovered devices. |
-| `thinq1` | No | Advanced legacy option. Set to `true` manually to enable ThinQ1 devices. |
+| Washer | Experimental | Running/power state, remaining time, fault, optional completion/door/tub-clean services |
+| Dryer | Experimental | Running/power state, remaining time, fault, optional completion/door services |
+| WashTower | Experimental | Model-dependent washer/dryer state through the existing appliance accessory |
+| Television | Unsupported | ThinQ Connect does not expose televisions |
+| Other ThinQ appliances | Unsupported by the official backend in 2.2.0 | Use the explicitly selected deprecated legacy backend if required |
 
-Device type is detected from LG discovery data. Device-specific settings appear in the Homebridge UI after devices have been discovered.
+The official backend is deliberately read-only. It does not provide remote start, cycle selection, or other consequential controls. “Experimental” means automated tests and a limited deployment validation are performed, but broad public hardware compatibility has not been established.
 
-## Supported Devices
+## Before installing
 
-Support depends on the model data returned by LG. If a device appears in the LG ThinQ app but not in Homebridge, open an issue with the device type, model, country, and debug logs.
+1. Back up the Homebridge configuration, persistence, and accessories cache.
+2. Record the installed version: `npm list -g @0modfather0/homebridge-lg-thinq`.
+3. Keep or download the known-good 2.1.2 package for rollback.
+4. Create a ThinQ Connect personal access token (PAT) for the main account that owns the appliances. Grant only the device read, state read, event/MQTT subscription, route, and client-certificate permissions required by ThinQ Connect.
+5. Store the PAT in a password manager until submitting it through the plugin interface.
 
-| Device | Status | Control | ThinQ2 | ThinQ1 |
-| --- | --- | --- | --- | --- |
-| Refrigerator | Supported | Supported | Yes | Yes |
-| Air Purifier | Supported | Supported | Yes | Yes |
-| AeroTower | Supported | Supported | Yes | No |
-| Washer / Dryer / WashTower | Supported | Limited | Yes | Yes |
-| Dishwasher | Supported | No | Yes | No |
-| Dehumidifier | Supported | Partial | Yes | No |
-| Air Conditioner | Supported | Supported | Yes | Yes |
-| Styler | Supported | Limited | Yes | No |
-| Range Hood | Supported | Supported | Yes | Yes |
-| Oven | Supported | Partial | Yes | No |
-| Microwave | Supported | Partial | Yes | No |
+To roll back immediately, stop Homebridge, install `@0modfather0/homebridge-lg-thinq@2.1.2`, restore the pre-migration configuration/data if needed, and start Homebridge. Do not delete cached accessories during rollback.
 
-## Troubleshooting
+## Installation and migration
 
-Enable Homebridge debug logging when troubleshooting setup or device behavior. Include startup logs, device type/model information, country, language, and the error message when opening an issue.
+Install through Homebridge UI or manually:
 
-## CLI Usage
-
-```sh
-$ thinq
-Usage: thinq [options] [command]
-
-Options:
-  -c, --country <type>         Country code for account (default: "US")
-  -l, --language <type>        Language code for account (default: "en-US")
-  -h, --help                   display help for command
-
-Commands:
-  login <username> <password>  Obtain refresh_token from LG account
-  auth                         Obtain refresh_token from account logged by Google Account, Apple ID
-  help [command]               display help for command
+```shell
+npm install -g @0modfather0/homebridge-lg-thinq@2.2.0
 ```
 
-## Support
+Open the plugin settings, select **ThinQ Connect official API (Experimental)**, choose the account country and language, and submit the PAT in the dedicated credential panel. The server validates the candidate before atomically replacing a previously valid credential. The PAT is never added to `config.json` and is never returned to the browser after submission.
 
-If you have a question about this fork, start a [discussion](https://github.com/0Modfather0/homebridge-lg-thinq/discussions/new). For broader upstream discussion, visit the [original project](https://github.com/nVuln/homebridge-lg-thinq).
+Select **Discover experimental appliances**, review the matches, then save and restart Homebridge. Migration matching proceeds by official API device ID, then unique serial number, then a unique name/type match. An ambiguous match aborts; it does not guess. Existing configured accessory IDs are retained to preserve HomeKit pairing and automations.
 
-If you would like to report a bug in this fork, open an [issue](https://github.com/0Modfather0/homebridge-lg-thinq/issues/new/choose).
+After migration, verify every appliance is present only once, its state and remaining time update during a real cycle, completion events behave as expected, and the logs contain no credentials. Revoke the PAT and roll back to 2.1.2 if continuity or reporting fails.
 
-## Contributors
+## How the official backend works
 
-Special thanks to [carlosgamezvillegas](https://github.com/carlosgamezvillegas) for implementing Oven and Microwave device support. More detail in [#87](https://github.com/nVuln/homebridge-lg-thinq/issues/87).
+The plugin uses the pinned `thinqconnect` TypeScript SDK version `0.9.10-beta`. It subscribes to supported appliance events over MQTT and reconciles state every five minutes. A stable client UUID and issued MQTT private key/certificate are kept in protected Homebridge plugin storage. Quota responses use bounded, jittered exponential backoff and a supplied retry interval when the SDK response exposes one.
+
+PAT scopes and rate limits are controlled by LG and may change. Use the least-privilege scopes shown by the ThinQ Connect portal, avoid very short polling intervals, and consult the portal for the current quota assigned to the token.
+
+## Credential storage
+
+Resolution order:
+
+1. `LG_THINQ_PAT_FILE` — existing, read-only external secret file. Replacement and removal are disabled in the UI.
+2. `LG_THINQ_SECRET_DIR` — writable directory managed by this plugin; the PAT is stored as `pat`.
+3. `.lg-thinq-connect/pat` beneath the Homebridge storage path.
+
+On Linux and macOS, managed directories use mode `0700` and files use `0600`, owned by the Homebridge runtime user. macOS normally resolves beneath `~/.homebridge`. On Windows, the default is beneath `%HOMEPATH%\.homebridge`; drive-letter and UNC environment paths are supported, and files inherit the Homebridge service identity's NTFS permissions. POSIX `chmod` does not enforce Windows ACLs. Administrators may restrict a managed directory with:
+
+```powershell
+icacls "C:\path\to\secrets" /inheritance:r /grant:r "HOME_BRIDGE_SERVICE_ACCOUNT:(OI)(CI)F" /grant:r "SYSTEM:(OI)(CI)F"
+```
+
+Replace the placeholder with the actual Windows service identity and validate access before restarting. The plugin retries briefly when antivirus software temporarily locks a managed file.
+
+Filesystem permissions are **not encryption**. An administrator/root user, the Homebridge service identity, host compromise, or an unencrypted disk can still expose the PAT. Native Keychain, DPAPI/Credential Manager, TPM-backed storage, and application-level encryption are outside this release.
+
+### Docker
+
+Mount a dedicated secret directory read/write and keep it outside Homebridge application data, source control, telemetry, and routine backups:
+
+```yaml
+services:
+  homebridge:
+    environment:
+      LG_THINQ_SECRET_DIR: /run/homebridge-secrets
+    volumes:
+      - /srv/apps/homebridge/secrets:/run/homebridge-secrets
+```
+
+On Linux, create the host directory for the container's Homebridge UID and mode `0700`; the managed `pat` file is mode `0600`. Do not bake the PAT into an image, Compose manifest, environment variable, or Git repository.
+
+### Linux and macOS without Docker
+
+Use the default Homebridge storage location or set `LG_THINQ_SECRET_DIR` in the Homebridge service environment. Ensure the Homebridge runtime account—not an interactive administrator account—owns the directory. For an external secret provider, mount or create a mode-`0600` file and set `LG_THINQ_PAT_FILE`.
+
+### Windows without Docker
+
+Run Homebridge under a dedicated service identity, set either environment variable at the service level, and grant that identity read/write access only to the managed directory. If `LG_THINQ_PAT_FILE` is set, grant read access and manage rotation outside the plugin. UNC paths require the service identity to have network-share and NTFS permissions.
+
+### External secret mode
+
+`LG_THINQ_PAT_FILE` is treated as externally managed and read-only. Rotate it atomically in the external secret system and restart Homebridge. The plugin interface reports only configuration status and location; it never returns file contents.
+
+## Rotation and revocation
+
+For managed storage, submit a new PAT in the interface. The candidate is validated first, writes are serialized, and an atomic replacement preserves the previous PAT if validation or writing fails. Restart Homebridge and validate state updates, then revoke the old PAT in LG's portal. For external mode, rotate at the source and restart. A revoked or missing PAT causes the official backend to fail explicitly; it does not fall back to legacy authentication.
+
+## Legacy compatibility mode
+
+Legacy LG account and refresh-token modes are deprecated. They remain selectable for device families not supported by the official backend. Legacy credentials may still reside in `config.json`; migrate away where practical. Selecting ThinQ Connect clears legacy credentials from the UI model, but you should independently inspect backups and configuration history.
+
+## Safe issue reporting
+
+Use the bug-report template and state the appliance category, model, region, Homebridge/Node/plugin versions, host OS, and whether Docker is used. Never post a PAT, refresh token, MQTT private key/certificate, client UUID, complete device ID, serial number, email address, IP address, HomeKit code, or raw unreviewed logs. Revoke any credential accidentally disclosed.
+
+## Development
+
+Supported runtimes are Node 22 and 24 with Homebridge 1.11.2 or 2.x. CI compiles, lints, tests, audits production dependencies, and dry-runs the package on Ubuntu, macOS, and Windows. Official API tests use sanitized fixtures only.
+
+```shell
+npm ci
+npm run check
+npm pack --dry-run
+```
+
+## License and attribution
+
+Apache-2.0. This fork builds on work by nVuln, bvksound, mp-consulting, and prior contributors. The official API adapter uses LG's Apache-2.0 `thinqconnect` package; LG trademarks belong to LG Electronics.

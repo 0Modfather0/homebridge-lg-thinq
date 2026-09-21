@@ -11,6 +11,9 @@ export function configuredDevices(config: PlatformConfig): ConfiguredDevice[] {
 }
 
 export function hasRequiredThinQConfig(config: PlatformConfig): boolean {
+  if (config.auth_mode === 'thinq_connect') {
+    return Boolean(config.country && config.language);
+  }
   const hasCredentials = Boolean(config.username && config.password);
   return Boolean(config.country && config.language && (hasCredentials || config.refresh_token));
 }
@@ -20,13 +23,17 @@ export function isThinQ1Enabled(config: PlatformConfig): boolean {
 }
 
 export function refreshIntervalMs(config: PlatformConfig): number {
-  const seconds = Number(config.refresh_interval ?? 5);
-  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 5000;
+  const defaultSeconds = config.auth_mode === 'thinq_connect' ? 300 : 5;
+  const seconds = Number(config.refresh_interval ?? defaultSeconds);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : defaultSeconds * 1000;
 }
 
 export function isDeviceEnabled(config: PlatformConfig, device: Pick<Device, 'id'>): boolean {
   const devices = configuredDevices(config);
-  return devices.length === 0 || devices.some(enabled => enabled.id === device.id);
+  const apiDeviceId = (device as Device).data?.apiDeviceId;
+  return devices.length === 0 || devices.some(enabled => enabled.id === device.id
+    || (typeof apiDeviceId === 'string' && apiDeviceId
+      === (enabled as ConfiguredDevice & { api_device_id?: unknown }).api_device_id));
 }
 
 export function configuredDeviceFor(config: PlatformConfig, device: Pick<Device, 'id'>): ConfiguredDevice | undefined {

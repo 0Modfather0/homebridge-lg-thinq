@@ -1,5 +1,17 @@
 # Change Log
 
+## v2.2.0 (Experimental ThinQ Connect backend)
+
+- Renames the project to Homebridge LG ThinQ Connect while preserving the npm identifier and `LGThinQ` platform identity.
+- Adds an explicitly experimental, read-only official ThinQ Connect backend for washers, dryers, and WashTowers using `thinqconnect@0.9.10-beta`.
+- Adds MQTT events, five-minute reconciliation, stable client identity, protected certificates, bounded quota backoff, and conservative accessory matching.
+- Adds cross-platform managed and external PAT storage. PATs never belong in `config.json`, browser responses, logs, Git, telemetry, or packages.
+- Marks the legacy backend deprecated and explicitly selected; there is no silent fallback.
+- Documents Linux, macOS, Windows, Docker, rotation, revocation, safe reporting, and rollback.
+- Televisions are explicitly unsupported because ThinQ Connect does not expose them.
+
+> This release's official backend is experimental, has limited real-world testing, may vary by hardware/region/OS, and is used at your own risk. It is not endorsed by LG, Apple, or Homebridge.
+
 ## v2.1.2
 
 * Use LG's current `lgemembers.com` account sign-in flow before the retired EMP OAuth flow.

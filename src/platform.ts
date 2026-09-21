@@ -105,6 +105,7 @@ export class LGThinQHomebridgePlatform implements DynamicPlatformPlugin {
 
     this.api.on('shutdown', () => {
       this.stopMonitor();
+      this.ThinQ.close().catch(err => this.log.debug('ThinQ Connect shutdown failed:', err));
     });
   }
 

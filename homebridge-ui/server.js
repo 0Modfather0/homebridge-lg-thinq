@@ -2,6 +2,8 @@ import { API } from '../dist/lib/API.js';
 import { Auth } from '../dist/lib/Auth.js';
 import { HomebridgePluginUiServer } from '@homebridge/plugin-ui-utils';
 import { DeviceType } from '../dist/lib/constants.js';
+import { PatSecretStore } from '../dist/thinqConnect/secretStore.js';
+import { ThinQConnectAdapter } from '../dist/thinqConnect/adapter.js';
 
 function createUiLogger(scope) {
   const prefix = scope;
@@ -24,6 +26,10 @@ function errorMessage(err, fallback) {
     || err?.message
     || err?.cause?.message
     || fallback;
+}
+
+function safeErrorMessage(err, fallback) {
+  return errorMessage(err, fallback).replace(/Bearer\s+\S+/giu, 'Bearer [REDACTED]');
 }
 
 function errorDetails(err) {
@@ -75,6 +81,9 @@ class UiServer extends HomebridgePluginUiServer {
 
     this.onRequest('/login-by-user-pass', this.loginByUserPass.bind(this));
     this.onRequest('/get-all-devices', this.getAllDevices.bind(this));
+    this.onRequest('/thinq-connect/status', this.thinqConnectStatus.bind(this));
+    this.onRequest('/thinq-connect/install', this.installThinQConnectPat.bind(this));
+    this.onRequest('/thinq-connect/remove', this.removeThinQConnectPat.bind(this));
 
     // this.ready() must be called to let the UI know you are ready to accept api calls
     this.ready();
@@ -85,6 +94,26 @@ class UiServer extends HomebridgePluginUiServer {
 
     try {
       logger.info(`/get-all-devices starting for ${params.country}/${params.language}`);
+
+      if (params.auth_mode === 'thinq_connect') {
+        const secrets = new PatSecretStore(this.homebridgeStoragePath);
+        const adapter = new ThinQConnectAdapter(
+          { auth_mode: 'thinq_connect', country: params.country, language: params.language, devices: [] },
+          logger,
+          secrets,
+          this.homebridgeStoragePath,
+        );
+        await adapter.ready();
+        const devices = (await adapter.devices()).map(device => ({
+          id: device.id,
+          api_device_id: device.apiDeviceId,
+          name: device.name,
+          type: device.type,
+          serial_number: device.serialNumber || '',
+          experimental: true,
+        }));
+        return { success: true, devices };
+      }
 
       const api = new API(params.country, params.language, logger);
       api.setRefreshToken(params.refresh_token);
@@ -105,6 +134,37 @@ class UiServer extends HomebridgePluginUiServer {
         success: false,
         error: errorMessage(err, 'Unable to load ThinQ devices.'),
       };
+    }
+  }
+
+  async thinqConnectStatus() {
+    try {
+      return { success: true, ...(await new PatSecretStore(this.homebridgeStoragePath).status()) };
+    } catch (err) {
+      return { success: false, error: safeErrorMessage(err, 'Unable to inspect PAT storage.') };
+    }
+  }
+
+  async installThinQConnectPat(params) {
+    const logger = createUiLogger('ThinQ Connect PAT');
+    try {
+      const secrets = new PatSecretStore(this.homebridgeStoragePath);
+      await secrets.install(params.pat, candidate => ThinQConnectAdapter.validatePat(candidate, params.country));
+      logger.info('Validated and installed a ThinQ Connect PAT.');
+      return { success: true, ...(await secrets.status()) };
+    } catch (err) {
+      logger.error(safeErrorMessage(err, 'Unable to install the PAT.'));
+      return { success: false, error: safeErrorMessage(err, 'Unable to install the PAT.') };
+    }
+  }
+
+  async removeThinQConnectPat() {
+    try {
+      const secrets = new PatSecretStore(this.homebridgeStoragePath);
+      await secrets.remove();
+      return { success: true, ...(await secrets.status()) };
+    } catch (err) {
+      return { success: false, error: safeErrorMessage(err, 'Unable to remove the PAT.') };
     }
   }
 

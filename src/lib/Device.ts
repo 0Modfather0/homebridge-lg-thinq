@@ -5,6 +5,8 @@ export const DEVICE_ID_PATTERN = /^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]
 
 export interface DeviceData {
   deviceId: string;
+  apiDeviceId?: string;
+  officialDeviceType?: string;
   alias: string;
   modelJsonUri: string;
   deviceType: number;
@@ -40,6 +42,10 @@ export class Device {
    */
   public get id() {
     return this.data.deviceId;
+  }
+
+  public get apiDeviceId() {
+    return this.data.apiDeviceId || this.data.deviceId;
   }
 
   /**

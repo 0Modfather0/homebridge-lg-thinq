@@ -8,16 +8,23 @@
     "auth_mode": {
       "title": "Auth Mode",
       "type": "string",
-      "default": "account",
+      "description": "ThinQ Connect is experimental, has limited real-world testing, and is used at your own risk. The legacy modes are deprecated.",
+      "default": "thinq_connect",
       "oneOf": [
         {
-          "title": "LG Account",
+          "title": "ThinQ Connect official API (Experimental)",
+          "enum": [
+            "thinq_connect"
+          ]
+        },
+        {
+          "title": "Legacy LG Account (Deprecated)",
           "enum": [
             "account"
           ]
         },
         {
-          "title": "Token",
+          "title": "Legacy Refresh Token (Deprecated)",
           "enum": [
             "token"
           ]
@@ -63,11 +70,11 @@
       "default": false
     },
     "refresh_interval": {
-      "title": "Refresh interval (in second)",
+      "title": "Reconciliation interval (seconds)",
       "type": "number",
-      "default": 60,
+      "default": 300,
       "condition": {
-        "functionBody": "return !!model.thinq1;"
+        "functionBody": "return model.auth_mode === 'thinq_connect' || !!model.thinq1;"
       }
     },
     "devices": {
@@ -87,6 +94,10 @@
           },
           "serial_number": {
             "title": "Serial Number (optional)",
+            "type": "string"
+          },
+          "api_device_id": {
+            "title": "ThinQ Connect API Device ID",
             "type": "string"
           },
           "dishwasher_trigger": {
@@ -275,6 +286,7 @@
         "devices[].name",
         "devices[].id",
         "devices[].serial_number",
+        "devices[].api_device_id",
         {
           "key": "devices[]",
           "type": "fieldset",

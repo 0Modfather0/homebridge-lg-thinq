@@ -11,6 +11,7 @@ dist/**/__tests__
 
 # eslint
 eslint.config.js
+.gitleaks.toml
 
 # typescript
 tsconfig.json

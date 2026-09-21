@@ -1,0 +1,12 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Public legacy LG client constants inherited from the upstream plugin"
+paths = ['''src/lib/constants\.ts''']
+regexes = [
+  '''c053c2a6ddeb7ad97cb0eed0dcb31cf8''',
+  '''VGhpblEyLjAgU0VSVklDRQ==''',
+  '''c713ea8e50f657534ff8b9d373dfebfc2ed70b88285c26b8ade49868c0b164d9''',
+  '''6V1V8H2BN5P9ZQGOI5DAQ92YZBDO3EK9''',
+]

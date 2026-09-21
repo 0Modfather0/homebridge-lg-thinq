@@ -1,8 +1,8 @@
 {
-  "displayName": "Homebridge LG ThinQ OAuth Fix",
+  "displayName": "Homebridge LG ThinQ Connect",
   "name": "@0modfather0/homebridge-lg-thinq",
-  "version": "2.1.2",
-  "description": "A Homebridge plugin for controlling and monitoring LG ThinQ devices, with fixes for current LG OAuth authentication.",
+  "version": "2.2.0",
+  "description": "EXPERIMENTAL, use at your own risk: read-only Homebridge support for LG washers, dryers, and WashTowers through ThinQ Connect.",
   "license": "Apache-2.0",
   "type": "module",
   "publishConfig": {
@@ -10,10 +10,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/0Modfather0/homebridge-lg-thinq.git"
+    "url": "git+https://github.com/0Modfather0/homebridge-lg-thinq-connect.git"
   },
   "bugs": {
-    "url": "https://github.com/0Modfather0/homebridge-lg-thinq/issues"
+    "url": "https://github.com/0Modfather0/homebridge-lg-thinq-connect/issues"
   },
   "engines": {
     "homebridge": "^1.11.2 || ^2.0.0",
@@ -58,7 +58,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.2"
   },
-  "homepage": "https://github.com/0Modfather0/homebridge-lg-thinq#readme",
+  "homepage": "https://github.com/0Modfather0/homebridge-lg-thinq-connect#readme",
   "author": "nVuln",
   "contributors": [
     "bvksound (preLogin 403 fix fork)",
@@ -74,10 +74,12 @@
     "luxon": "^3.7.2",
     "node-forge": "^1.4.0",
     "node-persist": "^4.0.4",
-    "qs": "^6.15.1"
+    "qs": "^6.15.1",
+    "thinqconnect": "0.9.10-beta"
   },
   "overrides": {
     "glob": "^13.0.6",
+    "uuid": "^11.1.1",
     "help-me": {
       "glob": "^13.0.6"
     },

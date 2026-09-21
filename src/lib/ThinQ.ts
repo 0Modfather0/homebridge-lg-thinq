@@ -22,6 +22,8 @@ import {
   unregisterThinQ1WorkId,
   WorkIdRegistry,
 } from './thinq1Monitor.js';
+import { PatSecretStore } from '../thinqConnect/secretStore.js';
+import { ThinQConnectAdapter } from '../thinqConnect/adapter.js';
 
 export type WorkId = string;
 
@@ -30,6 +32,7 @@ export class ThinQ {
   protected workIds: WorkIdRegistry = {};
   protected deviceModel: Record<string, DeviceModel> = {};
   protected persist;
+  private readonly official?: ThinQConnectAdapter;
   constructor(
     public readonly platform: LGThinQHomebridgePlatform,
     public readonly config: PlatformConfig,
@@ -43,7 +46,15 @@ export class ThinQ {
       return Promise.reject(err);
     });
 
-    if (config.refresh_token) {
+    if (config.auth_mode === 'thinq_connect') {
+      const storagePath = this.platform.api.user.storagePath();
+      this.official = new ThinQConnectAdapter(
+        config,
+        logger,
+        new PatSecretStore(storagePath),
+        storagePath,
+      );
+    } else if (config.refresh_token) {
       this.api.setRefreshToken(config.refresh_token);
     } else if (config.username && config.password) {
       this.api.setUsernamePassword(config.username, config.password);
@@ -53,12 +64,18 @@ export class ThinQ {
   }
 
   public async devices() {
+    if (this.official) {
+      return this.official.devices();
+    }
     const listDevices = await this.api.getListDevices();
 
     return devicesFromList(listDevices);
   }
 
   public async setup(device: Device) {
+    if (this.official) {
+      return this.official.setup(device);
+    }
     // load device model
     device.deviceModel = await this.loadDeviceModel(device);
 
@@ -81,6 +98,9 @@ export class ThinQ {
   }
 
   public async unregister(device: Device) {
+    if (this.official) {
+      return;
+    }
     if (device.platform === PlatformType.ThinQ1) {
       await unregisterThinQ1WorkId({
         api: this.api,
@@ -108,6 +128,9 @@ export class ThinQ {
   }
 
   public async pollMonitor(device: Device) {
+    if (this.official) {
+      return this.official.poll(device);
+    }
     device.deviceModel = await this.loadDeviceModel(device);
 
     if (device.platform === PlatformType.ThinQ1) {
@@ -133,6 +156,9 @@ export class ThinQ {
   public async deviceControl(
     device: string | Device, values: Record<string, any>,
     command: 'Set' | 'Operation' = 'Set', ctrlKey = 'basicCtrl', ctrlPath = 'control-sync') {
+    if (this.official) {
+      throw new Error('ThinQ Connect mode is read-only in this experimental release.');
+    }
     const id = device instanceof Device ? device.id : device;
     const model: DeviceModel | undefined = this.deviceModel[id];
 
@@ -149,6 +175,10 @@ export class ThinQ {
   }
 
   public async registerMQTTListener(callback: (data: any) => void) {
+    if (this.official) {
+      await this.official.registerEvents(callback);
+      return;
+    }
     await retryMqttRegistration({
       register: () => this._registerMQTTListener(callback),
       logger: this.logger,
@@ -189,7 +219,15 @@ export class ThinQ {
   }
 
   public async isReady() {
+    if (this.official) {
+      await this.official.ready();
+      return;
+    }
     await this.persist.init();
     await this.api.ready();
+  }
+
+  public async close() {
+    await this.official?.close();
   }
 }
