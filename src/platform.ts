@@ -25,6 +25,7 @@ import {
 } from './platformConfig.js';
 import {
   DISCOVERY_RETRY_DELAY_MS,
+  isRetryableThinQConnectReadyError,
   isRetryableDiscoveryError,
   prepareDiscoveredDevice,
 } from './platformDiscovery.js';
@@ -57,6 +58,8 @@ export class LGThinQHomebridgePlatform implements DynamicPlatformPlugin {
   private readonly monitorIntervals: MonitorInterval[] = [];
   private readonly intervalTime: number;
   private monitorStarted = false;
+  private readyRetry?: ReturnType<typeof setTimeout>;
+  private shuttingDown = false;
 
   // Enable ThinQ1 support
   private readonly enable_thinq1: boolean = false;
@@ -88,24 +91,40 @@ export class LGThinQHomebridgePlatform implements DynamicPlatformPlugin {
       return;
     }
 
-    const didFinishLaunching = () => {
-      // Discover and register devices after the platform is ready
-      this.ThinQ.isReady().then(() => {
-        this.log.info('Successfully connected to the ThinQ API.');
-        this.discoverDevicesWithRetry();
-      }).catch(err => {
-        this.logThinQReadyError(err);
-      });
-    };
-
     this.api.on('didFinishLaunching', async () => {
       log.debug('Executed didFinishLaunching callback');
-      didFinishLaunching();
+      this.connectThinQWithRetry();
     });
 
     this.api.on('shutdown', () => {
+      this.shuttingDown = true;
+      if (this.readyRetry) {
+        clearTimeout(this.readyRetry);
+        this.readyRetry = undefined;
+      }
       this.stopMonitor();
       this.ThinQ.close().catch(err => this.log.debug('ThinQ Connect shutdown failed:', err));
+    });
+  }
+
+  private connectThinQWithRetry(): void {
+    this.ThinQ.isReady().then(() => {
+      this.readyRetry = undefined;
+      this.log.info('Successfully connected to the ThinQ API.');
+      this.discoverDevicesWithRetry();
+    }).catch(err => {
+      this.logThinQReadyError(err);
+      const shouldRetry = this.config.auth_mode === 'thinq_connect'
+        && isRetryableThinQConnectReadyError(err)
+        && !this.shuttingDown;
+      if (!shouldRetry || this.readyRetry) {
+        return;
+      }
+      this.log.warn(`ThinQ Connect startup is temporarily unavailable; retrying in ${DISCOVERY_RETRY_DELAY_MS / 1000} seconds.`);
+      this.readyRetry = setTimeout(() => {
+        this.readyRetry = undefined;
+        this.connectThinQWithRetry();
+      }, DISCOVERY_RETRY_DELAY_MS);
     });
   }
 

@@ -63,36 +63,91 @@ async function wait(milliseconds: number): Promise<void> {
 
 function applianceState(value: unknown): Json {
   const root = record(value);
-  return record(root.response || root.state || root.reported || root);
+  const nested = root.response ?? root.state ?? root.reported ?? value;
+  if (Array.isArray(nested)) {
+    const preferred = nested.find(item => {
+      const location = firstString(record(record(item).location).locationName).toUpperCase();
+      return ['MAIN', 'WASHER'].includes(location);
+    });
+    return record(preferred || nested[0]);
+  }
+  return record(nested);
 }
 
-function stateString(state: Json): string {
-  return firstString(
+function stateString(state: Json, fallback = true): string | undefined {
+  const raw = firstString(
     record(state.runState).currentState,
-    record(state.operation).washerOperationMode,
-    record(state.operation).dryerOperationMode,
     state.currentState,
     state.state,
-    'POWEROFF',
-  ).replace(/^.*[_.]/u, '').toUpperCase();
+  );
+  if (!raw) {
+    return fallback ? 'POWEROFF' : undefined;
+  }
+  const canonical = raw.split('.').at(-1)!.toUpperCase();
+  const aliases: Record<string, string> = {
+    COMPLETE: 'END',
+    COMPLETED: 'END',
+    COOL_DOWN: 'COOLDOWN',
+    PAUSED: 'PAUSE',
+    POWER_FAIL: 'POWERFAIL',
+    POWER_OFF: 'POWEROFF',
+    STANDBY: 'POWEROFF',
+  };
+  return aliases[canonical] || canonical;
 }
 
-export function normalizeOfficialState(value: unknown): Json {
+function owns(value: Json, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+export function normalizeOfficialState(value: unknown, partial = false): Json {
   const state = applianceState(value);
   const timer = record(state.timer);
   const remote = record(state.remoteControlEnable);
   const door = record(state.doorLock);
-  const normalized = {
-    state: stateString(state),
-    preState: firstString(record(state.runState).previousState, state.preState),
-    processState: firstString(record(state.operation).washerOperationMode, record(state.operation).dryerOperationMode),
-    remainTimeHour: Number(timer.remainHour ?? state.remainTimeHour ?? 0),
-    remainTimeMinute: Number(timer.remainMinute ?? state.remainTimeMinute ?? 0),
-    remoteStart: (remote.remoteControlEnabled ?? state.remoteControlEnabled) ? 'REMOTE_START_ON' : 'REMOTE_START_OFF',
-    doorLock: (door.doorLockEnabled ?? door.locked ?? state.doorLockEnabled) ? 'DOORLOCK_ON' : 'DOORLOCK_OFF',
-    TCLCount: Number(record(state.tubClean).count ?? state.TCLCount ?? 0),
-  };
+  const runState = record(state.runState);
+  const operation = record(state.operation);
+  const tubClean = record(state.tubClean);
+  const normalized: Json = {};
+  const currentState = stateString(state, !partial);
+  if (currentState !== undefined) {
+    normalized.state = currentState;
+  }
+  if (!partial || owns(runState, 'previousState') || owns(state, 'preState')) {
+    normalized.preState = firstString(runState.previousState, state.preState);
+  }
+  if (!partial || owns(operation, 'washerOperationMode') || owns(operation, 'dryerOperationMode')) {
+    normalized.processState = firstString(operation.washerOperationMode, operation.dryerOperationMode);
+  }
+  if (!partial || owns(timer, 'remainHour') || owns(state, 'remainTimeHour')) {
+    normalized.remainTimeHour = Number(timer.remainHour ?? state.remainTimeHour ?? 0);
+  }
+  if (!partial || owns(timer, 'remainMinute') || owns(state, 'remainTimeMinute')) {
+    normalized.remainTimeMinute = Number(timer.remainMinute ?? state.remainTimeMinute ?? 0);
+  }
+  if (!partial || owns(remote, 'remoteControlEnabled') || owns(state, 'remoteControlEnabled')) {
+    normalized.remoteStart = (remote.remoteControlEnabled ?? state.remoteControlEnabled)
+      ? 'REMOTE_START_ON' : 'REMOTE_START_OFF';
+  }
+  if (!partial || owns(door, 'doorLockEnabled') || owns(door, 'locked') || owns(state, 'doorLockEnabled')) {
+    normalized.doorLock = (door.doorLockEnabled ?? door.locked ?? state.doorLockEnabled)
+      ? 'DOORLOCK_ON' : 'DOORLOCK_OFF';
+  }
+  if (!partial || owns(tubClean, 'count') || owns(state, 'TCLCount')) {
+    normalized.TCLCount = Number(tubClean.count ?? state.TCLCount ?? 0);
+  }
   return { washerDryer: normalized };
+}
+
+function mergeOfficialSnapshot(previous: Json | undefined, update: Json): Json {
+  return {
+    ...previous,
+    ...update,
+    washerDryer: {
+      ...record(previous?.washerDryer),
+      ...record(update.washerDryer),
+    },
+  };
 }
 
 function minimalModel(device: Device): DeviceModel {
@@ -122,6 +177,7 @@ export class ThinQConnectAdapter {
   private clientId = '';
   private readonly stateDirectory: string;
   private readonly apiToAccessory = new Map<string, string>();
+  private readonly snapshots = new Map<string, Json>();
 
   constructor(
     private readonly config: PlatformConfig,
@@ -176,6 +232,8 @@ export class ThinQConnectAdapter {
       this.apiToAccessory.set(item.deviceId, accessoryId);
 
       const status = await this.getStatus(item.deviceId);
+      const normalizedSnapshot = { online: true, ...normalizeOfficialState(status) };
+      this.snapshots.set(item.deviceId, normalizedSnapshot);
       const data: DeviceData = {
         deviceId: accessoryId,
         apiDeviceId: item.deviceId,
@@ -185,7 +243,7 @@ export class ThinQConnectAdapter {
         deviceType: SUPPORTED_TYPES.get(typeName)!,
         modelName: firstString(info.modelName, info.model),
         manufacture: { serialNo: serial },
-        snapshot: { online: true, ...normalizeOfficialState(status) },
+        snapshot: normalizedSnapshot,
         platformType: PlatformType.ThinQ2,
         online: true,
       };
@@ -202,6 +260,7 @@ export class ThinQConnectAdapter {
 
   public async poll(device: Device): Promise<Device> {
     device.snapshot = { online: true, ...normalizeOfficialState(await this.getStatus(device.apiDeviceId)) };
+    this.snapshots.set(device.apiDeviceId, device.snapshot);
     return device;
   }
 
@@ -220,7 +279,10 @@ export class ThinQConnectAdapter {
           const apiDeviceId = firstString(message.deviceId);
           const accessoryId = this.apiToAccessory.get(apiDeviceId);
           if (accessoryId) {
-            callback({ deviceId: accessoryId, data: { state: { reported: normalizeOfficialState(message.report) } } });
+            const update = normalizeOfficialState(message.report, true);
+            const snapshot = mergeOfficialSnapshot(this.snapshots.get(apiDeviceId), update);
+            this.snapshots.set(apiDeviceId, snapshot);
+            callback({ deviceId: accessoryId, data: { state: { reported: snapshot } } });
           }
         } catch (error) {
           this.logger.warn('Ignored an invalid ThinQ Connect MQTT event:', this.safeError(error));

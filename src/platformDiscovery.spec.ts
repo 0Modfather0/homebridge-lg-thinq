@@ -5,6 +5,7 @@ import type { Device } from './lib/Device.js';
 import { PlatformType } from './lib/constants.js';
 import {
   DISCOVERY_RETRY_DELAY_MS,
+  isRetryableThinQConnectReadyError,
   isRetryableDiscoveryError,
   prepareDiscoveredDevice,
   unregisterUnsupportedDevice,
@@ -56,6 +57,17 @@ function fakeAccessoryResolver(make = () => FakeDeviceHandler as any) {
 describe('platform discovery helpers', () => {
   test('exposes the existing discovery retry delay', () => {
     expect(DISCOVERY_RETRY_DELAY_MS).toBe(30000);
+  });
+
+  test('retries transient ThinQ Connect startup failures', () => {
+    expect(isRetryableThinQConnectReadyError(new Error('Unexpected Error'))).toBe(true);
+    expect(isRetryableThinQConnectReadyError({ status: 503, message: 'Service unavailable' })).toBe(true);
+  });
+
+  test('does not retry permanent ThinQ Connect credential failures', () => {
+    expect(isRetryableThinQConnectReadyError({ status: 401, message: 'Unauthorized' })).toBe(false);
+    expect(isRetryableThinQConnectReadyError(new Error('ThinQ Connect PAT is not configured'))).toBe(false);
+    expect(isRetryableThinQConnectReadyError(new Error('PAT path is not a regular file'))).toBe(false);
   });
 
   test('identifies retryable discovery errors', () => {

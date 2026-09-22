@@ -7,7 +7,9 @@ import { LGThinQHomebridgePlatform } from './platform.js';
 function fakeLog() {
   return {
     debug: jest.fn(),
+    error: jest.fn(),
     info: jest.fn(),
+    warn: jest.fn(),
   };
 }
 
@@ -23,6 +25,34 @@ function fakeThinQ2Accessory() {
 }
 
 describe('LGThinQHomebridgePlatform monitor startup', () => {
+  test('retries a transient official API startup failure and then discovers devices', async () => {
+    jest.useFakeTimers();
+    const platform = Object.create(LGThinQHomebridgePlatform.prototype) as any;
+    platform.config = { auth_mode: 'thinq_connect' };
+    platform.log = fakeLog();
+    platform.shuttingDown = false;
+    platform.readyRetry = undefined;
+    platform.ThinQ = {
+      isReady: jest.fn<() => Promise<void>>()
+        .mockRejectedValueOnce(new Error('Unexpected Error'))
+        .mockResolvedValueOnce(undefined),
+    };
+    platform.discoverDevicesWithRetry = jest.fn();
+
+    platform.connectThinQWithRetry();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(platform.log.warn).toHaveBeenCalledWith('ThinQ Connect startup is temporarily unavailable; retrying in 30 seconds.');
+    expect(platform.ThinQ.isReady).toHaveBeenCalledTimes(1);
+
+    await jest.advanceTimersByTimeAsync(30000);
+
+    expect(platform.ThinQ.isReady).toHaveBeenCalledTimes(2);
+    expect(platform.discoverDevicesWithRetry).toHaveBeenCalledTimes(1);
+    jest.useRealTimers();
+  });
+
   test('clears partial monitor startup state when MQTT listener registration fails', async () => {
     const platform = Object.create(LGThinQHomebridgePlatform.prototype) as any;
 

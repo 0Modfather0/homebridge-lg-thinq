@@ -9,6 +9,22 @@ import { isDeviceEnabled } from './platformConfig.js';
 
 export const DISCOVERY_RETRY_DELAY_MS = 30000;
 
+export function isRetryableThinQConnectReadyError(err: unknown): boolean {
+  const error = err as { status?: unknown; response?: { status?: unknown }; message?: unknown };
+  const status = Number(error?.status ?? error?.response?.status);
+  if ([400, 401, 403].includes(status)) {
+    return false;
+  }
+
+  const message = typeof error?.message === 'string' ? error.message : '';
+  const permanentCredentialError = [
+    /(?:invalid|missing|revoked|unauthori[sz]ed|forbidden).*(?:pat|token|credential)/iu,
+    /(?:pat|token|credential).*(?:invalid|missing|revoked|unauthori[sz]ed|forbidden)/iu,
+    /not configured|symbolic link|not a regular file/iu,
+  ].some(pattern => pattern.test(message));
+  return !permanentCredentialError;
+}
+
 export type DeviceAccessoryResolver = {
   make(device: Device): DeviceAccessoryConstructor | null;
   category(device: Device): number;
