@@ -3,19 +3,21 @@
 > [!CAUTION]
 > **Experimental — limited real-world testing — use at your own risk.** The ThinQ Connect backend has not been broadly validated across LG models, firmware, regions, Homebridge releases, or operating systems. Preserve backups and understand the rollback procedure before installing. This independent project is not endorsed, certified, supported, or affiliated with LG, Apple, or Homebridge.
 
-Read-only Homebridge integration for LG washers, dryers, and WashTowers using LG's official ThinQ Connect API. Version 2.2.0 retains the deprecated legacy backend for explicit compatibility use; it never falls back to legacy authentication automatically.
+Read-only Homebridge integration for LG washers, dryers, and WashTowers using LG's official ThinQ Connect API. Version 2.2.1 retains the deprecated legacy backend for explicit compatibility use; it never falls back to legacy authentication automatically.
 
 The npm package remains `@0modfather0/homebridge-lg-thinq` and the Homebridge platform name remains `LGThinQ`, preserving upgrades and cached accessory identity.
 
 ## Supported devices
 
-| ThinQ Connect device | Status | Current HomeKit presentation |
+| ThinQ Connect device | Status | What Apple Home currently shows |
 | --- | --- | --- |
-| Washer | Experimental | Running/power state, remaining time, fault, optional completion/door/tub-clean services |
-| Dryer | Experimental | Running/power state, remaining time, fault, optional completion/door services |
-| WashTower | Experimental | Model-dependent washer/dryer state through the existing appliance accessory |
+| Washer | Experimental | A faucet tile showing On/Off for appliance power; optional separate completion, door-lock, and tub-clean services when enabled and supported |
+| Dryer | Experimental | A faucet tile showing On/Off for appliance power; optional separate completion and door-lock services when enabled and supported |
+| WashTower | Experimental | A faucet tile showing On/Off for reported appliance power; model-dependent optional services |
 | Television | Unsupported | ThinQ Connect does not expose televisions |
-| Other ThinQ appliances | Unsupported by the official backend in 2.2.0 | Use the explicitly selected deprecated legacy backend if required |
+| Other ThinQ appliances | Unsupported by the official backend in 2.2.x | Use the explicitly selected deprecated legacy backend if required |
+
+The faucet tile's On/Off state reports appliance power, not whether a cycle is running. The plugin also updates HomeKit Valve characteristics for in-use state, remaining duration, and faults, but Apple Home does not present these as a detailed washer or dryer view. The tile may look controllable; tapping it does not start or stop the appliance, and the value returns to the reported state. Optional services appear separately only when configured and supported by the model.
 
 The official backend is deliberately read-only. It does not provide remote start, cycle selection, or other consequential controls. “Experimental” means automated tests and a limited deployment validation are performed, but broad public hardware compatibility has not been established.
 
@@ -34,14 +36,14 @@ To roll back immediately, stop Homebridge, install `@0modfather0/homebridge-lg-t
 Install through Homebridge UI or manually:
 
 ```shell
-npm install -g @0modfather0/homebridge-lg-thinq@2.2.0
+npm install -g @0modfather0/homebridge-lg-thinq@2.2.1
 ```
 
 Open the plugin settings, select **ThinQ Connect official API (Experimental)**, choose the account country and language, and submit the PAT in the dedicated credential panel. The server validates the candidate before atomically replacing a previously valid credential. The PAT is never added to `config.json` and is never returned to the browser after submission.
 
 Select **Discover experimental appliances**, review the matches, then save and restart Homebridge. Migration matching proceeds by official API device ID, then unique serial number, then a unique name/type match. An ambiguous match aborts; it does not guess. Existing configured accessory IDs are retained to preserve HomeKit pairing and automations.
 
-After migration, verify every appliance is present only once, its state and remaining time update during a real cycle, completion events behave as expected, and the logs contain no credentials. Revoke the PAT and roll back to 2.1.2 if continuity or reporting fails.
+After migration, verify every appliance is present only once, its faucet tile follows appliance power, optional completion services behave as expected, and the logs contain no credentials. A HomeKit characteristic inspector can show in-use state and remaining duration; Apple Home does not display them in the faucet tile. Revoke the PAT and roll back to 2.1.2 if continuity or reporting fails.
 
 ## How the official backend works
 

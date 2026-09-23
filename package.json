@@ -1,7 +1,7 @@
 {
   "displayName": "Homebridge LG ThinQ Connect",
   "name": "@0modfather0/homebridge-lg-thinq",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "EXPERIMENTAL, use at your own risk: read-only Homebridge support for LG washers, dryers, and WashTowers through ThinQ Connect.",
   "license": "Apache-2.0",
   "type": "module",

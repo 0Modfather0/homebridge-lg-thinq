@@ -1,5 +1,12 @@
 # Change Log
 
+## v2.2.1 (Documentation correction)
+
+- Corrects the supported-device table and migration checks: Apple Home presents washers, dryers, and WashTowers as faucet tiles with On/Off power state. In-use, remaining-duration, and fault characteristics are updated by the plugin but do not appear as a detailed appliance view in Apple Home.
+- Clarifies that tapping the faucet tile does not control the appliance. Runtime code and dependencies are unchanged from 2.2.0.
+
+> The ThinQ Connect backend remains experimental, has limited real-world testing, and is used at your own risk.
+
 ## v2.2.0 (Experimental ThinQ Connect backend)
 
 - Renames the project to Homebridge LG ThinQ Connect while preserving the npm identifier and `LGThinQ` platform identity.
